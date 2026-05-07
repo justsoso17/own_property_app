@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Rounded box outline (safe/vault) -->
+    <path
+        android:pathData="M26,30 L82,30 C86,30 88,32 88,36 L88,78 C88,82 86,84 82,84 L26,84 C22,84 20,82 20,78 L20,36 C20,32 22,30 26,30 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0" />
+
+    <!-- Inner box fill -->
+    <path
+        android:pathData="M28,34 L80,34 C84,34 86,36 86,40 L86,76 C86,80 84,82 80,82 L28,82 C24,82 22,80 22,76 L22,40 C22,36 24,34 28,34 Z"
+        android:fillColor="#FF6900" />
+
+    <!-- White inner shape - stylized stack of items -->
+    <path
+        android:pathData="M40,40 L68,40 L68,48 L40,48 Z"
+        android:fillColor="#FFFFFF" />
+
+    <path
+        android:pathData="M36,52 L72,52 L72,60 L36,60 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.85" />
+
+    <path
+        android:pathData="M44,64 L64,64 L64,72 L44,72 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.65" />
+
+    <!-- Small geometric accent dot -->
+    <path
+        android:pathData="M78,60 C80,60 82,62 82,64 C82,66 80,68 78,68 C76,68 74,66 74,64 C74,62 76,60 78,60 Z"
+        android:fillColor="#FF8A33" />
+</vector>
