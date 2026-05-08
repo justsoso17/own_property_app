@@ -13,4 +13,6 @@ class CategoryRepository @Inject constructor(
     fun getAll(): Flow<List<CategoryEntity>> = dao.getAll()
 
     suspend fun getById(id: Long): CategoryEntity? = dao.getById(id)
+
+    suspend fun insertOne(category: CategoryEntity): Long = dao.insertOne(category)
 }

@@ -5,13 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.zichan.app.data.entity.AssetEntity
 import com.zichan.app.data.entity.CategoryEntity
 import com.zichan.app.data.entity.LocationEntity
+import com.zichan.app.data.entity.PersonEntity
 import com.zichan.app.data.repository.AssetRepository
 import com.zichan.app.data.repository.CategoryRepository
+import com.zichan.app.data.repository.LendRecordRepository
 import com.zichan.app.data.repository.LocationRepository
+import com.zichan.app.data.repository.PersonRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,9 +23,10 @@ data class AssetListUiState(
     val assets: List<AssetEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val locations: List<LocationEntity> = emptyList(),
+    val deadlines: Map<Long, Long> = emptyMap(), // assetId -> expectedReturnDate
     val searchKeyword: String = "",
     val filterCategoryId: Long? = null,
-    val filterStatus: String? = null,
+    val filterStatuses: Set<String> = emptySet(),
     val isLoading: Boolean = true
 )
 
@@ -30,11 +35,14 @@ data class AssetEditUiState(
     val brand: String = "",
     val model: String = "",
     val categoryId: Long? = null,
+    val customCategory: String = "",
     val price: String = "",
     val purchaseDate: Long? = null,
     val purchaseChannel: String = "",
     val status: String = "使用中",
+    val lenderId: Long? = null,
     val locationId: Long? = null,
+    val customLocation: String = "",
     val specs: String = "",
     val serialNumber: String = "",
     val notes: String = "",
@@ -43,6 +51,7 @@ data class AssetEditUiState(
     val photoPath: String? = null,
     val categories: List<CategoryEntity> = emptyList(),
     val locations: List<LocationEntity> = emptyList(),
+    val persons: List<PersonEntity> = emptyList(),
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val saved: Boolean = false
@@ -52,11 +61,18 @@ data class AssetEditUiState(
 class AssetViewModel @Inject constructor(
     private val assetRepository: AssetRepository,
     private val categoryRepository: CategoryRepository,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val personRepository: PersonRepository,
+    private val lendRecordRepository: LendRecordRepository
 ) : ViewModel() {
 
     private val _listState = MutableStateFlow(AssetListUiState())
     val listState: StateFlow<AssetListUiState> = _listState.asStateFlow()
+
+    companion object {
+        private const val OTHER_CATEGORY_ID = 10L
+        private const val OTHER_LOCATION_ID = 6L
+    }
 
     private val _editState = MutableStateFlow(AssetEditUiState())
     val editState: StateFlow<AssetEditUiState> = _editState.asStateFlow()
@@ -64,6 +80,7 @@ class AssetViewModel @Inject constructor(
     init {
         loadCategories()
         loadLocations()
+        loadPersons()
         loadAssets()
     }
 
@@ -85,12 +102,36 @@ class AssetViewModel @Inject constructor(
         }
     }
 
+    private fun loadPersons() {
+        viewModelScope.launch {
+            personRepository.getAll().collect { persons ->
+                _editState.value = _editState.value.copy(persons = persons)
+            }
+        }
+    }
+
     fun loadAssets() {
         viewModelScope.launch {
             assetRepository.getAll().collect { assets ->
-                _listState.value = _listState.value.copy(assets = assets, isLoading = false)
+                val records = lendRecordRepository.getByStatus("借用中").first()
+                val deadlines = records.associate { it.assetId to (it.expectedReturnDate ?: 0L) }
+                _listState.value = _listState.value.copy(
+                    assets = assets,
+                    deadlines = deadlines,
+                    isLoading = false
+                )
             }
         }
+    }
+
+    suspend fun getBorrowerName(assetId: Long): String? {
+        val record = lendRecordRepository.getActiveByAssetId(assetId) ?: return null
+        val personId = record.personId ?: return null
+        return personRepository.getById(personId)?.name
+    }
+
+    suspend fun getReturnDeadline(assetId: Long): Long? {
+        return lendRecordRepository.getActiveByAssetId(assetId)?.expectedReturnDate
     }
 
     fun search(keyword: String) {
@@ -104,17 +145,30 @@ class AssetViewModel @Inject constructor(
         }
     }
 
-    fun applyFilter(categoryId: Long?, status: String?) {
-        _listState.value = _listState.value.copy(filterCategoryId = categoryId, filterStatus = status)
+    fun toggleFilterStatus(status: String) {
+        val current = _listState.value.filterStatuses
+        val updated = if (status in current) current - status else current + status
+        applyFilter(_listState.value.filterCategoryId, updated)
+    }
+
+    fun clearFilters() {
+        applyFilter(null, emptySet())
+    }
+
+    private fun applyFilter(categoryId: Long?, statuses: Set<String>) {
+        _listState.value = _listState.value.copy(filterCategoryId = categoryId, filterStatuses = statuses)
         viewModelScope.launch {
             assetRepository.filter(
                 keyword = _listState.value.searchKeyword.ifBlank { null },
                 categoryId = categoryId,
-                status = status,
+                status = if (statuses.size == 1) statuses.first() else null,
                 minPrice = null,
                 maxPrice = null
             ).collect { assets ->
-                _listState.value = _listState.value.copy(assets = assets)
+                val filtered = if (statuses.size > 1) {
+                    assets.filter { it.status in statuses }
+                } else assets
+                _listState.value = _listState.value.copy(assets = filtered)
             }
         }
     }
@@ -129,6 +183,10 @@ class AssetViewModel @Inject constructor(
                 )
             } else {
                 assetRepository.getById(assetId)?.let { asset ->
+                    val lenderId = if (asset.status == "已借出") {
+                        lendRecordRepository.getActiveByAssetId(assetId)?.personId
+                    } else null
+
                     _editState.value = AssetEditUiState(
                         name = asset.name,
                         brand = asset.brand,
@@ -138,6 +196,7 @@ class AssetViewModel @Inject constructor(
                         purchaseDate = asset.purchaseDate,
                         purchaseChannel = asset.purchaseChannel,
                         status = asset.status,
+                        lenderId = lenderId,
                         locationId = asset.locationId,
                         specs = asset.specs,
                         serialNumber = asset.serialNumber,
@@ -147,6 +206,7 @@ class AssetViewModel @Inject constructor(
                         photoPath = asset.photoPath,
                         categories = _editState.value.categories,
                         locations = _editState.value.locations,
+                        persons = _editState.value.persons,
                         isLoading = false
                     )
                 } ?: run {
@@ -168,17 +228,37 @@ class AssetViewModel @Inject constructor(
             _editState.value = _editState.value.copy(isSaving = true)
             val price = state.price.toDoubleOrNull() ?: 0.0
 
+            // Handle custom category
+            val finalCategoryId: Long? = if (state.categoryId == OTHER_CATEGORY_ID &&
+                state.customCategory.isNotBlank()
+            ) {
+                val newId = categoryRepository.insertOne(
+                    CategoryEntity(name = state.customCategory, icon = "more_horiz")
+                )
+                newId
+            } else state.categoryId
+
+            // Handle custom location
+            val finalLocationId: Long? = if (state.locationId == OTHER_LOCATION_ID &&
+                state.customLocation.isNotBlank()
+            ) {
+                val newId = locationRepository.insertOne(
+                    LocationEntity(name = state.customLocation)
+                )
+                newId
+            } else state.locationId
+
             val asset = AssetEntity(
                 id = if (assetId == 0L) 0 else assetId,
                 name = state.name,
                 brand = state.brand,
                 model = state.model,
-                categoryId = state.categoryId,
+                categoryId = finalCategoryId,
                 price = price,
                 purchaseDate = state.purchaseDate,
                 purchaseChannel = state.purchaseChannel,
                 status = state.status,
-                locationId = state.locationId,
+                locationId = finalLocationId,
                 specs = state.specs,
                 serialNumber = state.serialNumber,
                 notes = state.notes,
@@ -202,6 +282,14 @@ class AssetViewModel @Inject constructor(
         }
     }
 
+    fun deleteAssets(ids: Set<Long>) {
+        viewModelScope.launch {
+            ids.forEach { id ->
+                assetRepository.getById(id)?.let { assetRepository.delete(it) }
+            }
+        }
+    }
+
     fun sellAsset(asset: AssetEntity) {
         viewModelScope.launch {
             assetRepository.sell(asset)
@@ -216,5 +304,33 @@ class AssetViewModel @Inject constructor(
 
     fun reloadList() {
         loadAssets()
+    }
+
+    fun updatePhoto(asset: AssetEntity, path: String) {
+        viewModelScope.launch {
+            assetRepository.update(asset.copy(photoPath = path))
+            loadAssets()
+        }
+    }
+
+    fun deletePhoto(asset: AssetEntity) {
+        viewModelScope.launch {
+            assetRepository.update(asset.copy(photoPath = null))
+            loadAssets()
+        }
+    }
+
+    fun updateStatus(asset: AssetEntity, status: String) {
+        viewModelScope.launch {
+            assetRepository.update(asset.copy(status = status))
+            loadAssets()
+        }
+    }
+
+    fun addPerson(person: PersonEntity) {
+        viewModelScope.launch {
+            val id = personRepository.insert(person)
+            _editState.value = _editState.value.copy(lenderId = id)
+        }
     }
 }

@@ -29,8 +29,10 @@ val LightTextTertiary = Color(0xFFAAAAAA)
 val StatusGreen = Color(0xFF5C9E6D)
 val StatusYellow = Color(0xFFC4A24C)
 val StatusRed = Color(0xFFB85C5C)
+val StatusGray = Color(0xFF8E8E8E)
 
 val Orange500 = Amber500
 val StatusInUse = StatusGreen
 val StatusIdle = StatusYellow
 val StatusLent = StatusRed
+val StatusSold = StatusGray

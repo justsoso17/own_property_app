@@ -26,4 +26,7 @@ interface LendRecordDao {
 
     @Update
     suspend fun update(record: LendRecordEntity)
+
+    @Query("SELECT * FROM lend_records WHERE asset_id = :assetId AND status = '借用中' LIMIT 1")
+    suspend fun getActiveByAssetId(assetId: Long): LendRecordEntity?
 }

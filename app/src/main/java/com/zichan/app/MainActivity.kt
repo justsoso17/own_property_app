@@ -21,9 +21,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        CoroutineScope(Dispatchers.IO).launch {
-            seedData.seed()
-        }
+        CoroutineScope(Dispatchers.IO).launch { seedData.seed() }
         enableEdgeToEdge()
         setContent {
             ZichanTheme {

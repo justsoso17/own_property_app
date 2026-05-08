@@ -3,16 +3,25 @@ package com.zichan.app.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zichan.app.data.entity.PersonEntity
+import com.zichan.app.data.repository.AssetRepository
+import com.zichan.app.data.repository.LendRecordRepository
 import com.zichan.app.data.repository.PersonRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class PersonWithAssets(
+    val person: PersonEntity,
+    val borrowedAssets: List<Pair<Long, String>> = emptyList() // assetId to name
+)
+
 data class PersonListUiState(
     val persons: List<PersonEntity> = emptyList(),
+    val borrowedMap: Map<Long, List<Pair<Long, String>>> = emptyMap(),
     val isLoading: Boolean = true
 )
 
@@ -29,7 +38,9 @@ data class PersonEditUiState(
 
 @HiltViewModel
 class PersonViewModel @Inject constructor(
-    private val repository: PersonRepository
+    private val repository: PersonRepository,
+    private val lendRepository: LendRecordRepository,
+    private val assetRepository: AssetRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PersonListUiState())
@@ -45,7 +56,24 @@ class PersonViewModel @Inject constructor(
     fun loadPersons() {
         viewModelScope.launch {
             repository.getAll().collect { persons ->
-                _uiState.value = PersonListUiState(persons = persons, isLoading = false)
+                val records = lendRepository.getByStatus("借用中").first()
+                val allAssets = assetRepository.getAll().first()
+                val nameMap = allAssets.associate { it.id to it.name }
+                val map = mutableMapOf<Long, MutableList<Pair<Long, String>>>()
+                records.forEach { r ->
+                    r.personId?.let { pid ->
+                        val assetName = nameMap[r.assetId] ?: "资产"
+                        val list = map.getOrPut(pid) { mutableListOf() }
+                        if (list.none { it.first == r.assetId }) {
+                            list.add(r.assetId to assetName)
+                        }
+                    }
+                }
+                _uiState.value = PersonListUiState(
+                    persons = persons,
+                    borrowedMap = map,
+                    isLoading = false
+                )
             }
         }
     }

@@ -13,4 +13,6 @@ class LocationRepository @Inject constructor(
     fun getAll(): Flow<List<LocationEntity>> = dao.getAll()
 
     suspend fun getById(id: Long): LocationEntity? = dao.getById(id)
+
+    suspend fun insertOne(location: LocationEntity): Long = dao.insertOne(location)
 }

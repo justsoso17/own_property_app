@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="widget_padding">16dp</dimen>
+    <dimen name="widget_spacing">12dp</dimen>
+    <dimen name="widget_chip_padding_h">10dp</dimen>
+    <dimen name="widget_chip_padding_v">6dp</dimen>
+    <dimen name="widget_chip_gap">8dp</dimen>
+    <dimen name="widget_text_large">26sp</dimen>
+    <dimen name="widget_text_small">12sp</dimen>
+    <dimen name="widget_text_chip">11sp</dimen>
+</resources>

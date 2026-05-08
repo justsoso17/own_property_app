@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zichan.app.data.entity.AssetEntity
 import com.zichan.app.ui.theme.Amber500
 import com.zichan.app.ui.theme.StatusGreen
+import com.zichan.app.ui.theme.StatusSold
 import com.zichan.app.ui.theme.StatusRed
 import com.zichan.app.ui.theme.StatusYellow
 import com.zichan.app.ui.theme.TextSecondary
@@ -69,6 +70,16 @@ fun HomeScreen(
                 ) {
                     item { TotalValueCard(uiState.totalValue) }
                     item { StatusRow(uiState.inUseCount, uiState.idleCount, uiState.lentCount) }
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            StatusChip("已出售", uiState.soldCount, StatusSold, Modifier.weight(1f))
+                            StatusChip("已丢弃", uiState.discardedCount, StatusSold, Modifier.weight(1f))
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
 
                     if (uiState.expiringAssets.isNotEmpty()) {
                         item { Spacer(Modifier.height(8.dp)) }

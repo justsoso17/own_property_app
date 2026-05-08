@@ -19,4 +19,6 @@ class AssetLogRepository @Inject constructor(
     suspend fun deleteById(id: Long) = dao.deleteById(id)
 
     suspend fun deleteAll() = dao.deleteAll()
+
+    suspend fun getAllOnce(): List<AssetLogEntity> = dao.getAllOnce()
 }

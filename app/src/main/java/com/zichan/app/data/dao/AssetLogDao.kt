@@ -22,4 +22,7 @@ interface AssetLogDao {
 
     @Query("DELETE FROM asset_logs")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM asset_logs ORDER BY timestamp DESC")
+    suspend fun getAllOnce(): List<AssetLogEntity>
 }

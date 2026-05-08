@@ -26,6 +26,12 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Weekend
@@ -58,12 +64,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import android.Manifest
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.graphics.BitmapFactory
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zichan.app.util.PhotoManager
+import com.zichan.app.data.entity.PersonEntity
 import com.zichan.app.ui.theme.Amber500
+import com.zichan.app.ui.theme.StatusGreen
+import com.zichan.app.ui.util.QuickAddContactDialog
+import com.zichan.app.ui.theme.TextSecondary
 import com.zichan.app.ui.util.ZichanButton
 import com.zichan.app.ui.util.ZichanCard
 import com.zichan.app.ui.util.ZichanTopBar
@@ -81,6 +101,46 @@ fun AssetEditScreen(
     var categoryExpanded by remember { mutableStateOf(false) }
     var locationExpanded by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
+    var lenderExpanded by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        QuickAddContactDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { name, phone, rel ->
+                viewModel.addPerson(PersonEntity(name = name, phone = phone, relationship = rel))
+                showAddDialog = false
+            }
+        )
+    }
+
+    // Camera
+    val context = LocalContext.current
+    var photoFile by remember { mutableStateOf<java.io.File?>(null) }
+    var photoUri by remember { mutableStateOf<Uri?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && photoFile != null) {
+            viewModel.updateEditField { copy(photoPath = photoFile!!.absolutePath) }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && photoUri != null) {
+            cameraLauncher.launch(photoUri!!)
+        }
+    }
+
+    fun takePhoto() {
+        val file = PhotoManager.createTempFile(context)
+        photoFile = file
+        photoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
 
     LaunchedEffect(assetId) { viewModel.loadAssetForEdit(assetId) }
     LaunchedEffect(state.saved) { if (state.saved) onBack() }
@@ -145,7 +205,7 @@ fun AssetEditScreen(
                         value = state.categories.find { it.id == state.categoryId }?.name ?: "",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("分类") },
+                        label = { Text("分类 *") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
                         shape = FieldShape,
@@ -189,6 +249,25 @@ fun AssetEditScreen(
                     }
                 }
 
+                // Show custom category input when "其他" is selected
+                if (state.categoryId == 10L) {
+                    ZichanCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Amber500.copy(alpha = 0.08f))
+                    ) {
+                        OutlinedTextField(
+                            value = state.customCategory,
+                            onValueChange = { viewModel.updateEditField { copy(customCategory = it) } },
+                            label = { Text("自定义分类名") },
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            singleLine = true,
+                            shape = FieldShape,
+                            colors = fieldColors()
+                        )
+                    }
+                }
+
                 // Price
                 OutlinedTextField(
                     value = state.price,
@@ -211,6 +290,51 @@ fun AssetEditScreen(
                     shape = FieldShape,
                     colors = fieldColors()
                 )
+
+                // Photo
+                ZichanCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("资产照片", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    if (state.photoPath != null) "已拍摄" else "点击拍摄",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (state.photoPath != null) StatusGreen else TextSecondary
+                                )
+                            }
+                            androidx.compose.material3.IconButton(onClick = { takePhoto() }) {
+                                Icon(
+                                    Icons.Filled.CameraAlt, "拍照",
+                                    tint = Amber500,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+                        if (state.photoPath != null) {
+                            val bmp = remember(state.photoPath) {
+                                runCatching { BitmapFactory.decodeFile(state.photoPath) }.getOrNull()
+                            }
+                            if (bmp != null) {
+                                Spacer(Modifier.height(8.dp))
+                                Image(
+                                    bitmap = bmp.asImageBitmap(),
+                                    contentDescription = "资产照片",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(4f / 3f),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Status dropdown
                 ExposedDropdownMenuBox(
@@ -250,6 +374,71 @@ fun AssetEditScreen(
                                     if (isSelected) Icon(Icons.Filled.Check, "已选", Modifier.size(18.dp), tint = Amber500)
                                 }
                             )
+                        }
+                    }
+                }
+
+                // Person selector when status is "已借出"
+                if (state.status == "已借出") {
+                    ZichanCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Amber500.copy(alpha = 0.08f))
+                    ) {
+                        ExposedDropdownMenuBox(
+                            expanded = lenderExpanded,
+                            onExpandedChange = { lenderExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = state.persons.find { it.id == state.lenderId }?.name ?: "",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("借给谁") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = lenderExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor().padding(12.dp),
+                                shape = FieldShape,
+                                colors = fieldColors()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = lenderExpanded,
+                                onDismissRequest = { lenderExpanded = false }
+                            ) {
+                                if (state.persons.isEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text("暂无联系人", style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                        onClick = { lenderExpanded = false },
+                                        enabled = false
+                                    )
+                                }
+                                state.persons.forEach { person ->
+                                    val isSelected = person.id == state.lenderId
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Filled.Person, null, Modifier.size(20.dp),
+                                                    tint = if (isSelected) Amber500 else MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Spacer(Modifier.width(12.dp))
+                                                Text(person.name, color = if (isSelected) Amber500 else MaterialTheme.colorScheme.onSurface)
+                                            }
+                                        },
+                                        onClick = { viewModel.updateEditField { copy(lenderId = person.id) }; lenderExpanded = false },
+                                        trailingIcon = {
+                                            if (isSelected) Icon(Icons.Filled.Check, "已选", Modifier.size(18.dp), tint = Amber500)
+                                        }
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Filled.Add, null, Modifier.size(20.dp), tint = Amber500)
+                                            Spacer(Modifier.width(12.dp))
+                                            Text("添加联系人", color = Amber500)
+                                        }
+                                    },
+                                    onClick = { lenderExpanded = false; showAddDialog = true }
+                                )
+                            }
                         }
                     }
                 }
@@ -300,6 +489,25 @@ fun AssetEditScreen(
                                 }
                             )
                         }
+                    }
+                }
+
+                // Show custom location input when "其他" is selected
+                if (state.locationId == 6L) {
+                    ZichanCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Amber500.copy(alpha = 0.08f))
+                    ) {
+                        OutlinedTextField(
+                            value = state.customLocation,
+                            onValueChange = { viewModel.updateEditField { copy(customLocation = it) } },
+                            label = { Text("自定义位置名") },
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            singleLine = true,
+                            shape = FieldShape,
+                            colors = fieldColors()
+                        )
                     }
                 }
 
@@ -359,7 +567,7 @@ fun AssetEditScreen(
                 ZichanButton(
                     onClick = { viewModel.saveAsset(assetId) },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
-                    enabled = state.name.isNotBlank() && !state.isSaving,
+                    enabled = state.name.isNotBlank() && state.categoryId != null && !state.isSaving,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Amber500,

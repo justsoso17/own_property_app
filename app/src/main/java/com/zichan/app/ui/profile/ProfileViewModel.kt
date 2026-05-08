@@ -12,9 +12,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ProfileUiState(
-    val biometricEnabled: Boolean = false,
     val isExporting: Boolean = false,
-    val exportMessage: String? = null
+    val isImporting: Boolean = false,
+    val message: String? = null
 )
 
 @HiltViewModel
@@ -26,29 +26,31 @@ class ProfileViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
-    fun toggleBiometric(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(biometricEnabled = enabled)
-    }
-
     fun exportData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isExporting = true)
             try {
                 backupManager.exportToJson()
-                _uiState.value = _uiState.value.copy(
-                    isExporting = false,
-                    exportMessage = "导出成功"
-                )
+                _uiState.value = _uiState.value.copy(isExporting = false, message = "已导出到下载目录")
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isExporting = false,
-                    exportMessage = "导出失败: ${e.message}"
-                )
+                _uiState.value = _uiState.value.copy(isExporting = false, message = "导出失败: ${e.message}")
             }
         }
     }
 
-    fun clearExportMessage() {
-        _uiState.value = _uiState.value.copy(exportMessage = null)
+    fun importData(uri: android.net.Uri, replace: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isImporting = true)
+            try {
+                val msg = backupManager.importFromJson(uri, replace)
+                _uiState.value = _uiState.value.copy(isImporting = false, message = msg)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isImporting = false, message = "导入失败: ${e.message}")
+            }
+        }
+    }
+
+    fun clearMessage() {
+        _uiState.value = _uiState.value.copy(message = null)
     }
 }

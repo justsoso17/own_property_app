@@ -165,7 +165,10 @@ fun ZichanNavHost() {
                     onAddPerson = {
                         navController.navigate(Screen.PersonEdit.createRoute(0))
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onAssetClick = { assetId ->
+                        navController.navigate(Screen.AssetDetail.createRoute(assetId))
+                    }
                 )
             }
 
