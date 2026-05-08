@@ -66,14 +66,6 @@
 
 有几个隐藏的小惊喜，自己去发现吧。
 
-### 桌面小组件
-
-- 手机桌面直接显示总资产金额和状态分布
-- 点击跳转 App
-- 支持 HyperOS / MIUI
-
----
-
 ## 技术栈
 
 | 层级 | 技术 |
@@ -87,7 +79,6 @@
 | 序列化 | Gson |
 | 图片处理 | BitmapFactory + FileProvider |
 | 后台任务 | WorkManager |
-| 小组件 | Jetpack Glance |
 | 最低 API | Android 12 (API 31) |
 
 ---
@@ -118,8 +109,6 @@ app/src/main/java/com/zichan/app/
 │   ├── BackupWorker.kt           # WorkManager 自动备份
 │   ├── PhotoManager.kt           # 照片拍摄工具
 │   └── ButtonEffects.kt         # 按压动画组件
-└── widget/
-    └── ZichanWidget.kt           # 桌面小组件 (Glance)
 ```
 
 ---
@@ -150,7 +139,6 @@ app/src/main/java/com/zichan/app/
 - 统计折旧计算
 - 多选筛选 + 批量删除
 - 自动周备份
-- 桌面小组件
 - 导入导出（含照片）
 - 操作日志增强
 - 自定义分类/位置
