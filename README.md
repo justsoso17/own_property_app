@@ -1,45 +1,170 @@
 # 资产管家 (Zichan)
 
-A refined personal asset management app for Android. Track everything you own — from electronics to furniture to digital subscriptions — in one elegant, local-first app.
+一款精致优雅的 Android 个人资产管理系统。纯本地存储，无需服务器、无需账号、无需联网。
 
-## Features
+跟踪你拥有的一切——电子产品、家具家居、收藏品、图书、软件、订阅服务、数字账号、域名……每件物品都能记录详细元数据，拍照存档，追踪借还状态，计算折旧价值。
 
-- **Asset Tracking** — Add, edit, and organize your belongings with rich metadata (brand, model, price, serial number, purchase channel, photos)
-- **Smart Categories** — 10 built-in categories (electronics, furniture, collectibles, software, subscriptions, etc.)
-- **Lending Management** — Track who borrowed what, with expected return dates and history
-- **Contact Book** — Manage people you lend items to
-- **Statistics Dashboard** — Visual breakdown of your assets by category, status, and value
-- **Depreciation Calculator** — Three depreciation strategies (general, electronics, collectibles)
-- **Expiry Alerts** — Get notified when virtual assets or subscriptions are about to expire
-- **Dark & Light Themes** — Follows system appearance with a refined amber-on-charcoal palette
-- **Biometric Lock** — Protect your data with fingerprint or face recognition
-- **Local Backup** — Export all data as JSON to your device storage
-- **100% Local** — All data stored on-device via Room/SQLite. No server, no account, no cloud.
+---
 
-## Tech Stack
+## 功能概览
 
-| Layer | Technology |
-|-------|-----------|
-| Language | Kotlin |
-| UI | Jetpack Compose + Material 3 |
-| Database | Room (SQLite) |
-| DI | Hilt |
-| Async | Coroutines + Flow |
-| Backups | Gson JSON export |
-| Biometrics | AndroidX BiometricPrompt |
+### 资产管理
 
-## Requirements
+- **完整 CRUD** — 添加、查看、编辑、删除资产，支持丰富字段：名称、品牌、型号、分类、价格、购买日期、购买渠道、位置、规格参数、序列号、备注
+- **虚拟资产** — 软件许可、订阅服务、数字账号、域名等虚拟资产单独标识，支持到期日追踪
+- **拍照存证** — 每件资产可拍摄照片存证，详情页支持重拍和删除
+- **批量操作** — 长按进入多选模式，批量删除资产
+- **搜索筛选** — 支持关键词搜索（名称、品牌、型号），支持按状态多选筛选（使用中/闲置/已借出/已出售/已丢弃）
 
-- Android 12 (API 31) or later
-- Works on HyperOS, MIUI, and stock Android
+### 借还管理
 
-## Build
+- **借出登记** — 选择资产、选择联系人、设置归还期限，一键借出
+- **归还处理** — 标记归还，自动恢复资产状态为"使用中"
+- **借出倒计时** — 资产列表和详情页显示剩余天数或逾期天数
+- **借出历史** — 完整记录每次借还操作
 
-Open the project in Android Studio, sync Gradle, and run.
+### 联系人管理
+
+- **联系人 CRUD** — 姓名、关系（家人/朋友/同事/同学）、手机号、微信、备注
+- **快速添加** — 借出时可在下拉菜单中直接快速添加联系人
+- **借出关联** — 联系人列表显示该人当前借走的物品，点击跳转资产详情
+
+### 统计与分析
+
+- **总览面板** — 首页展示总资产价值、各状态物品数量、即将到期提醒
+- **分类价值** — 按分类统计资产价值，横向进度条可视化
+- **折旧计算** — 三种折旧策略：
+  - 通用折旧：每年递减 10%，最低至原价 20%
+  - 电子折旧：100% → 70% → 50% → 30% → 10%
+  - 收藏品：恒定保持原价 95%
+- **折旧明细** — 列出折旧幅度最大的资产
+
+### 操作日志
+
+- 所有资产操作自动记录：添加、修改、删除、出售、丢弃、借出、归还
+- 日志详情包含：名称、品牌型号、分类、价格、状态、位置、购买日期、购买渠道等全字段
+- 状态变更追踪：修改资产时自动记录"旧状态 → 新状态"
+- 借出日志包含：借出时间（精确到秒）、预计归还时间、借出天数
+- 单条删除（双击确认）、全部清空（弹窗确认）、导出分享为 JSON
+
+### 主题
+
+- 自动跟随系统暗/亮模式切换
+- 暗色主题：深炭底色 `#0D0D0D` + 琥珀金强调 `#C49A3C`
+- 亮色主题：奶油纸底色 `#F8F6F2` + 琥珀金保持
+- 卡片毛玻璃质感边框、按钮按压缩放动画、全局圆角统一
+
+### 数据安全
+
+- **纯本地存储** — Room/SQLite 数据库，数据完全在设备上
+- **导出备份** — 导出全部数据（含照片 base64 编码）到下载目录
+- **导入恢复** — 支持合并（去重）或替换模式，从 JSON 备份文件恢复
+- **自动备份** — WorkManager 每周自动后台备份资产数据
+- **操作日志** — 每次变更都记录在案，可追溯
+
+### 桌面小组件
+
+- 手机桌面直接显示总资产金额和状态分布
+- 点击跳转 App
+- 支持 HyperOS / MIUI
+
+### 彩蛋
+
+- "不要点击这里" → 打开原神官方下载
+- "这个也不要点" → 百度百科 Rick Roll 视频
+
+---
+
+## 技术栈
+
+| 层级 | 技术 |
+|------|------|
+| 语言 | Kotlin |
+| UI 框架 | Jetpack Compose + Material 3 |
+| 数据库 | Room (SQLite) |
+| 依赖注入 | Hilt |
+| 异步 | Kotlin Coroutines + Flow |
+| 导航 | Compose Navigation |
+| 序列化 | Gson |
+| 图片处理 | BitmapFactory + FileProvider |
+| 后台任务 | WorkManager |
+| 小组件 | Jetpack Glance |
+| 最低 API | Android 12 (API 31) |
+
+---
+
+## 项目结构
+
+```
+app/src/main/java/com/zichan/app/
+├── ZichanApplication.kt          # Application, WorkManager init
+├── MainActivity.kt               # 单 Activity 入口
+├── data/
+│   ├── entity/                   # Room 实体 (6 张表)
+│   ├── dao/                      # Room DAO 接口
+│   ├── database/                 # AppDatabase + 种子数据
+│   ├── repository/               # 数据仓库层
+│   └── strategy/                 # 折旧策略 (策略模式)
+├── di/
+│   └── DatabaseModule.kt         # Hilt 数据库模块
+├── ui/
+│   ├── theme/                    # 主题 (Color, Type, Theme)
+│   ├── navigation/               # 路由定义 + NavHost
+│   ├── home/                     # 首页 (ViewModel + Screen)
+│   ├── asset/                    # 资产管理 (列表/详情/编辑/借出)
+│   ├── stats/                    # 统计页
+│   └── profile/                  # 我的 (联系人/日志/备份)
+├── util/
+│   ├── BackupManager.kt          # 导出导入 (含照片 base64)
+│   ├── BackupWorker.kt           # WorkManager 自动备份
+│   ├── PhotoManager.kt           # 照片拍摄工具
+│   └── ButtonEffects.kt         # 按压动画组件
+└── widget/
+    └── ZichanWidget.kt           # 桌面小组件 (Glance)
+```
+
+---
+
+## 构建与运行
+
+1. 用 Android Studio 打开项目目录
+2. 等待 Gradle 同步完成
+3. 连接 Android 设备或启动模拟器
+4. 点击 Run
 
 ```bash
+# 或命令行构建
 ./gradlew assembleDebug
 ```
+
+**要求：** Android 12 (API 31) 及以上，适配 HyperOS、MIUI、原生 Android。
+
+---
+
+## 版本历史
+
+### v1.1.0
+- 暗黑金库主题 + 系统双主题跟随
+- 按钮/卡片 3D 按压效果
+- 拍照存证 + 重拍 + 删除
+- 借还管理 + 倒计时
+- 统计折旧计算
+- 多选筛选 + 批量删除
+- 自动周备份
+- 桌面小组件
+- 导入导出（含照片）
+- 操作日志增强
+- 自定义分类/位置
+- 联系人借出物品展示
+
+### v1.0.0
+- 资产 CRUD
+- 基础借还/联系人
+- 统计面板
+- 双主题
+- 数据导出
+
+---
 
 ## License
 
